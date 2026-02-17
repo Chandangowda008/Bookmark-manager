@@ -34,8 +34,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Redirect to /dashboard after successful authentication
-    redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/dashboard`,
     // Persist session in localStorage for cross-tab consistency
     persistSession: true,
     // Auto-refresh tokens before they expire
