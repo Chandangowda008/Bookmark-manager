@@ -184,13 +184,13 @@ export default function DashboardPage() {
           })
         }
       )
-      .on('error', (error) => {
-        console.error('❌ Realtime subscription error:', error)
-      })
       .subscribe((status) => {
         console.log('📡 Realtime subscription status:', status)
         if (status === 'SUBSCRIBED') {
           console.log('✅ Successfully subscribed to realtime changes')
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime subscription error')
         }
       })
 
