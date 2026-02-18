@@ -13,32 +13,47 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Get Supabase URL and anonymous key from environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Lazy-initialized Supabase client to defer creation until runtime
+let supabaseClient: ReturnType<typeof createClient> | null = null
 
 /**
- * Create and export Supabase client
- * 
- * This client handles:
- * - Authentication (Google OAuth)
- * - Database queries (CRUD operations)
- * - Realtime subscriptions
- * 
- * Security is enforced via Row Level Security (RLS) policies in Supabase,
- * not in this client code.
+ * Get or create Supabase client
+ * Defers client creation to runtime to avoid build-time errors
  */
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey,
+export function getSupabaseClient() {
+  if (!supabaseClient) {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error(
+        'Missing Supabase environment variables. Please check your .env.local file or Vercel environment variables.'
+      )
+    }
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        // Persist session in localStorage for cross-tab consistency
+        persistSession: true,
+        // Auto-refresh tokens before they expire
+        autoRefreshToken: true,
+      },
+    })
+  }
+  return supabaseClient
+}
+
+/**
+ * Exported client using lazy getter (deprecated, use getSupabaseClient instead)
+ */
+export const supabase = new Proxy(
+  {},
   {
-    auth: {
-      // Persist session in localStorage for cross-tab consistency
-      persistSession: true,
-      // Auto-refresh tokens before they expire
-      autoRefreshToken: true,
+    get: (target, prop) => {
+      const client = getSupabaseClient()
+      return (client as any)[prop]
     },
   }
-)
+) as ReturnType<typeof createClient>
 
 /**
  * Validate that Supabase environment variables are configured
