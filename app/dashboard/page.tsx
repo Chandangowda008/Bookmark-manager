@@ -13,13 +13,12 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 export default function DashboardPage() {
   const router = useRouter()
   
-  // State management
   const [user, setUser] = useState<any>(null)
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   
-  // Form inputs
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
 
@@ -30,6 +29,12 @@ export default function DashboardPage() {
   useEffect(() => {
     const init = async () => {
       try {
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          setError('Missing Supabase configuration. Please set environment variables.')
+          setLoading(false)
+          return
+        }
+        
         validateSupabaseConfig()
         
         const { data: { user }, error } = await supabase.auth.getUser()
@@ -48,6 +53,7 @@ export default function DashboardPage() {
         
         await fetchBookmarks()
       } catch (error) {
+        setError('Failed to initialize. Please try again.')
         router.push('/')
       } finally {
         setLoading(false)
@@ -231,6 +237,34 @@ export default function DashboardPage() {
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading your bookmarks...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-2xl max-w-md w-full mx-4">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-600 rounded-full mb-4">
+              <svg
+                className="w-8 h-8 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Error</h1>
+            <p className="text-gray-600 dark:text-gray-400">{error}</p>
+          </div>
         </div>
       </div>
     )

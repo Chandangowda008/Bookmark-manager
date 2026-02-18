@@ -7,10 +7,17 @@ import { useRouter } from 'next/navigation'
 export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const checkUser = async () => {
       try {
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          setError('Missing Supabase configuration. Please set environment variables.')
+          setLoading(false)
+          return
+        }
+        
         const { data: { user } } = await supabase.auth.getUser()
         
         if (user) {
@@ -46,13 +53,43 @@ export default function LoginPage() {
     }
   }
 
-  // Show loading state while checking authentication
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-2xl max-w-md w-full mx-4">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-600 rounded-full mb-4">
+              <svg
+                className="w-8 h-8 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Configuration Error</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Please check your Vercel environment variables or contact support.
+            </p>
+          </div>
         </div>
       </div>
     )
