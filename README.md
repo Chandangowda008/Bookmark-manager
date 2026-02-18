@@ -264,7 +264,140 @@ supabase
 3. Supabase broadcasts event to all subscribed clients
 4. Clients update their UI automatically
 
-## 🚨 Common Problems & Solutions
+## 🚨 Problems Faced During Development & Solutions
+
+### Problem: "supabaseUrl is required" Build Error
+
+**What Happened:**
+During the Vercel deployment, the build failed with:
+```
+Error: supabaseUrl is required.
+at new cd (.next/server/chunks/ssr/_9b88919e._.js:37:43440)
+```
+
+**Root Cause:**
+- The Supabase client was being initialized at the top level of the module
+- During Next.js build, environment variables weren't available yet
+- The Supabase library validates the URL immediately, causing a crash
+
+**Solution Implemented:**
+1. **Lazy Initialization**: Deferred Supabase client creation to runtime (when it's first accessed)
+   ```typescript
+   let supabaseClient: SupabaseClient | null = null
+   
+   function initSupabase(): SupabaseClient {
+     if (!supabaseClient) {
+       supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+     }
+     return supabaseClient
+   }
+   ```
+
+2. **Proxy Pattern**: Used a Proxy to transparently initialize on first property access
+   ```typescript
+   export const supabase = new Proxy<SupabaseClient>(
+     {} as SupabaseClient,
+     {
+       get: (target, prop) => {
+         if (!supabaseClient) supabaseClient = initSupabase()
+         return (supabaseClient as any)[prop]
+       }
+     }
+   )
+   ```
+
+3. **Result**: Build now succeeds and client initializes when first used in the browser
+
+---
+
+### Problem: "Configuration Error - Missing Supabase Variables" at Runtime
+
+**What Happened:**
+App deployed successfully but showed error in browser:
+```
+Configuration Error
+Missing Supabase configuration. Please set environment variables.
+```
+
+**Root Cause:**
+- Environment variables checked with `process.env` inside client components
+- At runtime in the browser, `process.env` is empty (only available at build time)
+- Even though we set environment variables in Vercel, the checks failed
+
+**Solution Implemented:**
+1. **Removed Runtime Checks**: Deleted `process.env` checks from client components
+2. **Rely on Build Time**: Environment variables are embedded into the JavaScript bundle during build by Next.js
+3. **Added `.env.production`**: File with credentials for local/backup builds
+4. **Error Handling**: Only throw errors when Supabase client is actually used, not on component mount
+
+---
+
+### Problem: OAuth Redirect to Localhost Instead of Vercel
+
+**What Happened:**
+After Google login:
+- Expected: Redirect to `https://bookmark-manager-73r7.vercel.app/dashboard`
+- Actual: Redirected to `http://localhost:3000/dashboard` (invalid)
+
+**Root Cause:**
+- Initial code had hardcoded localhost redirect
+- Vercel URL not configured in Supabase OAuth settings
+- Google OAuth callback didn't recognize the Vercel domain
+
+**Solution Implemented:**
+1. **Dynamic Redirect URL**:
+   ```typescript
+   redirectTo: `${window.location.origin}/dashboard`
+   ```
+   This automatically uses the current domain (Vercel or localhost)
+
+2. **Supabase Configuration**:
+   - Added Vercel URL to Supabase's "URL Configuration" → "Redirect URLs"
+   - Updated Google OAuth to include the new Vercel domain
+
+---
+
+### Problem: TypeScript Errors in Dashboard Component
+
+**What Happened:**
+TypeScript compilation failed with:
+```
+No overload matches this call.
+Type '{ user_id: any; title: string; url: string; }[]' is not assignable to parameter type 'never'.
+```
+
+**Root Cause:**
+- Supabase client was not properly typed
+- TypeScript couldn't infer the correct types for database operations
+- Using `Proxy` without proper type annotations confused the type system
+
+**Solution Implemented:**
+1. **Imported SupabaseClient Type**:
+   ```typescript
+   import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+   ```
+
+2. **Properly Typed Proxy**:
+   ```typescript
+   export const supabase = new Proxy<SupabaseClient>(
+     {} as SupabaseClient,
+     {
+       get: (target, prop: string | symbol) => {
+         if (!supabaseClient) {
+           supabaseClient = initSupabase()
+         }
+         return (supabaseClient as any)[prop]
+       }
+     }
+   ) as ReturnType<typeof createClient>
+   ```
+
+3. **Removed Unused Validation**: Removed redundant `validateSupabaseConfig()` that wasn't needed
+
+---
+
+## 🚨 Common Problems & Solutions (General Troubleshooting)
+
 
 ### Problem 1: "Invalid redirect URL" error
 
