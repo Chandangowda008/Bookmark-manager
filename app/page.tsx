@@ -38,11 +38,13 @@ export default function LoginPage() {
       })
 
       if (error) {
-        alert('Failed to login with Google. Please try again.')
+        console.error('Google OAuth Error:', error)
+        alert(`Login failed: ${error.message}`)
         setLoading(false)
       }
     } catch (error) {
-      alert('An unexpected error occurred.')
+      console.error('Unexpected login error:', error)
+      alert(`An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`)
       setLoading(false)
     }
   }
