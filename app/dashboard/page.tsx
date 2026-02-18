@@ -31,12 +31,6 @@ export default function DashboardPage() {
   useEffect(() => {
     const init = async () => {
       try {
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-          setError('Missing Supabase configuration. Please set environment variables.')
-          setLoading(false)
-          return
-        }
-        
         validateSupabaseConfig()
         
         const { data: { user }, error } = await supabase.auth.getUser()
