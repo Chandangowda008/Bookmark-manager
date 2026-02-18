@@ -1,16 +1,3 @@
-/**
- * Login Page - Root Route (/)
- * 
- * This is the entry point of the application.
- * Users authenticate here using Google OAuth via Supabase.
- * 
- * Flow:
- * 1. User clicks "Login with Google"
- * 2. Supabase redirects to Google OAuth consent screen
- * 3. Google redirects back to Supabase
- * 4. Supabase redirects to /dashboard
- */
-
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -21,21 +8,17 @@ export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
 
-  // Check if user is already logged in
-  // If yes, redirect to dashboard immediately
   useEffect(() => {
     const checkUser = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         
         if (user) {
-          // User is already authenticated, redirect to dashboard
           router.push('/dashboard')
         } else {
           setLoading(false)
         }
       } catch (error) {
-        console.error('Error checking authentication:', error)
         setLoading(false)
       }
     }
@@ -43,34 +26,21 @@ export default function LoginPage() {
     checkUser()
   }, [router])
 
-  /**
-   * Handle Google OAuth Sign In
-   * 
-   * This uses Supabase's signInWithOAuth method.
-   * It will open Google's consent screen.
-   * After successful auth, Supabase automatically redirects to /dashboard
-   * (configured in lib/supabase.ts)
-   */
   const handleGoogleLogin = async () => {
     try {
       setLoading(true)
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // Redirect URL after successful authentication
           redirectTo: `${window.location.origin}/dashboard`,
         },
       })
 
       if (error) {
-        console.error('Error logging in:', error.message)
         alert('Failed to login with Google. Please try again.')
         setLoading(false)
       }
-      // If successful, browser will redirect to Google
-      // So we keep loading state active
     } catch (error) {
-      console.error('Unexpected error:', error)
       alert('An unexpected error occurred.')
       setLoading(false)
     }
@@ -91,7 +61,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-2xl max-w-md w-full mx-4">
-        {/* App Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-full mb-4">
             <svg
@@ -116,13 +85,11 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Login Button */}
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
           className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-semibold py-3 px-4 rounded-lg border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
         >
-          {/* Google Logo SVG */}
           <svg className="w-6 h-6" viewBox="0 0 24 24">
             <path
               fill="#4285F4"
@@ -144,7 +111,6 @@ export default function LoginPage() {
           <span>Login with Google</span>
         </button>
 
-        {/* Info Text */}
         <p className="mt-6 text-sm text-center text-gray-500 dark:text-gray-400">
           By signing in, you agree to our Terms of Service and Privacy Policy
         </p>

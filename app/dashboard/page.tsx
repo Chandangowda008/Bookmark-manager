@@ -1,19 +1,6 @@
 /**
  * Dashboard Page - /dashboard
- * 
- * This is the main application page where authenticated users can:
- * - View their bookmarks
- * - Add new bookmarks
- * - Delete existing bookmarks
- * - See real-time updates across multiple tabs
- * 
- * Security:
- * - RLS (Row Level Security) ensures users only see their own bookmarks
- * - All database operations are filtered by user_id automatically
- * 
- * Realtime:
- * - Uses Supabase channels to listen for INSERT and DELETE events
- * - Updates UI instantly when changes occur in any tab
+ * Main application page for managing bookmarks
  */
 
 'use client'
@@ -43,31 +30,24 @@ export default function DashboardPage() {
   useEffect(() => {
     const init = async () => {
       try {
-        // Validate Supabase configuration
         validateSupabaseConfig()
         
-        // Check if user is authenticated
         const { data: { user }, error } = await supabase.auth.getUser()
         
         if (error || !user) {
-          // Not authenticated, redirect to login page
           router.push('/')
           return
         }
 
         setUser(user)
 
-        // Get session and set realtime auth
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.access_token) {
-          console.log('Setting realtime auth token')
           supabase.realtime.setAuth(session.access_token)
         }
         
-        // Load user's bookmarks
         await fetchBookmarks()
       } catch (error) {
-        console.error('Initialization error:', error)
         router.push('/')
       } finally {
         setLoading(false)
@@ -79,7 +59,6 @@ export default function DashboardPage() {
 
   /**
    * Keep realtime auth in sync with session changes
-   * This is required for postgres_changes to respect auth context
    */
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -95,9 +74,6 @@ export default function DashboardPage() {
 
   /**
    * Fetch bookmarks from Supabase
-   * 
-   * Thanks to RLS policies, this automatically filters by user_id
-   * Users can only SELECT their own bookmarks
    */
   const fetchBookmarks = async () => {
     try {
@@ -107,32 +83,21 @@ export default function DashboardPage() {
         .order('created_at', { ascending: false })
 
       if (error) {
-        console.error('Error fetching bookmarks:', error)
         return
       }
 
       setBookmarks(data || [])
     } catch (error) {
-      console.error('Unexpected error fetching bookmarks:', error)
+      // Silent failure
     }
   }
 
   /**
    * Set up Realtime Subscription
-   * 
-   * This listens for:
-   * - INSERT events (new bookmarks added)
-   * - DELETE events (bookmarks removed)
-   * 
-   * When events occur in database, UI updates automatically
-   * Works across multiple tabs/windows
    */
   useEffect(() => {
     if (!user) return
 
-    console.log('Setting up realtime subscription for user:', user.id)
-
-    // Create a unique channel for bookmarks table
     const channel: RealtimeChannel = supabase
       .channel('public:bookmarks')
       .on(
@@ -141,21 +106,15 @@ export default function DashboardPage() {
           event: 'INSERT',
           schema: 'public',
           table: 'bookmarks',
-          // Only listen to bookmarks created by current user
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('🔔 New bookmark INSERT event received:', payload.new)
           const next = payload.new as Bookmark
           
-          // Add new bookmark to the top of the list
           setBookmarks((current) => {
-            // Avoid duplicates
             if (current.some((item) => item.id === next.id)) {
-              console.log('Duplicate bookmark, skipping:', next.id)
               return current
             }
-            console.log('✅ Adding bookmark to list:', next.title)
             return [next, ...current]
           })
         }
@@ -168,58 +127,31 @@ export default function DashboardPage() {
           table: 'bookmarks',
         },
         (payload) => {
-          console.log('🔔 Bookmark DELETE event received from realtime:', payload.old)
           const deleted = payload.old as Bookmark
           
-          // Remove deleted bookmark from list
-          // RLS already ensures this is the current user's bookmark
           setBookmarks((current) => {
-            const alreadyRemoved = !current.some((item) => item.id === deleted.id)
-            
-            if (alreadyRemoved) {
-              console.log('⏭️ Bookmark already removed from UI:', deleted.id)
-              return current
-            }
-            
-            const filtered = current.filter((bookmark) => bookmark.id !== deleted.id)
-            console.log('✅ Removed bookmark from list (realtime sync):', deleted.id)
-            return filtered
+            return current.filter((bookmark) => bookmark.id !== deleted.id)
           })
         }
       )
-      .subscribe((status) => {
-        console.log('📡 Realtime subscription status:', status)
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Successfully subscribed to realtime changes')
-        }
-        if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Realtime subscription error')
-        }
-      })
+      .subscribe()
 
-    // Cleanup: unsubscribe when component unmounts or user changes
     return () => {
-      console.log('Cleaning up realtime subscription')
       channel.unsubscribe()
     }
   }, [user])
 
   /**
    * Add a new bookmark
-   * 
-   * Validates inputs and inserts into Supabase
-   * RLS ensures user_id is automatically set correctly
    */
   const handleAddBookmark = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validation
     if (!title.trim() || !url.trim()) {
       alert('Please fill in both title and URL')
       return
     }
 
-    // Basic URL validation
     let validUrl = url.trim()
     if (!validUrl.startsWith('http://') && !validUrl.startsWith('https://')) {
       validUrl = 'https://' + validUrl
@@ -237,22 +169,18 @@ export default function DashboardPage() {
       ]).select()
 
       if (error) {
-        console.error('Error adding bookmark:', error)
         alert('Failed to add bookmark. Please try again.')
         return
       }
 
-      // If realtime doesn't update, add it manually as fallback
       if (data && data.length > 0) {
         const newBookmark = data[0] as Bookmark
         setBookmarks((current) => [newBookmark, ...current])
       }
 
-      // Clear form inputs
       setTitle('')
       setUrl('')
     } catch (error) {
-      console.error('Unexpected error adding bookmark:', error)
       alert('An unexpected error occurred.')
     } finally {
       setAdding(false)
@@ -261,39 +189,24 @@ export default function DashboardPage() {
 
   /**
    * Delete a bookmark
-   * 
-   * RLS ensures users can only delete their own bookmarks
-   * Updates instantly with fallback if realtime is delayed
    */
   const handleDeleteBookmark = async (id: string) => {
     try {
-      console.log('🗑️ User initiated delete for bookmark:', id)
-      
-      // Remove from UI immediately for instant feedback
       setBookmarks((current) => {
-        const filtered = current.filter((item) => item.id !== id)
-        console.log('📋 Local state updated, removed bookmark:', id)
-        return filtered
+        return current.filter((item) => item.id !== id)
       })
 
-      // Then delete from database
       const { error } = await supabase
         .from('bookmarks')
         .delete()
         .eq('id', id)
 
       if (error) {
-        console.error('❌ Error deleting from database:', error)
-        // Refresh bookmarks in case delete failed
         await fetchBookmarks()
         alert('Failed to delete bookmark. Please try again.')
         return
       }
-
-      console.log('✅ Bookmark deleted successfully from database:', id)
     } catch (error) {
-      console.error('❌ Unexpected error deleting bookmark:', error)
-      // Refresh bookmarks in case of error
       await fetchBookmarks()
       alert('An unexpected error occurred.')
     }
@@ -307,7 +220,7 @@ export default function DashboardPage() {
       await supabase.auth.signOut()
       router.push('/')
     } catch (error) {
-      console.error('Error signing out:', error)
+      // Silent failure
     }
   }
 
@@ -325,7 +238,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -364,9 +276,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Add Bookmark Form */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Add New Bookmark
@@ -438,7 +348,6 @@ export default function DashboardPage() {
           </form>
         </div>
 
-        {/* Bookmarks List */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Your Bookmarks ({bookmarks.length})
@@ -516,7 +425,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Info Banner */}
         <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <svg
