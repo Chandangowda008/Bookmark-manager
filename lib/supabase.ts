@@ -21,15 +21,12 @@ let supabaseClient: SupabaseClient | null = null
  */
 function initSupabase(): SupabaseClient {
   // Get environment variables (Set at build time by Next.js)
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 
-    'https://kathepcjfamsmesggrxq.supabase.co'
-  
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthdGhlcGNqZmFtc21lc2dncnhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMDc1NzMsImV4cCI6MjA4Njg4MzU3M30.FW2_E5k16OdjaBwNKC1ZUKY07BmLSlAH2nW4o5JEElQ'
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
-      'Supabase environment variables not configured. Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in your deployment environment.'
+      'Supabase environment variables not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.production or Vercel environment variables.'
     )
   }
 
