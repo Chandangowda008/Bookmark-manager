@@ -10,50 +10,51 @@
 
 'use client'
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 // Get Supabase URL and anonymous key from environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 // Lazy-initialized Supabase client to defer creation until runtime
-let supabaseClient: ReturnType<typeof createClient> | null = null
+let supabaseClient: SupabaseClient | null = null
 
 /**
  * Get or create Supabase client
  * Defers client creation to runtime to avoid build-time errors
  */
-export function getSupabaseClient() {
-  if (!supabaseClient) {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error(
-        'Missing Supabase environment variables. Please check your .env.local file or Vercel environment variables.'
-      )
-    }
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        // Persist session in localStorage for cross-tab consistency
-        persistSession: true,
-        // Auto-refresh tokens before they expire
-        autoRefreshToken: true,
-      },
-    })
+function initSupabase(): SupabaseClient {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      'Missing Supabase environment variables. Please check your .env.local file or Vercel environment variables.'
+    )
   }
-  return supabaseClient
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      // Persist session in localStorage for cross-tab consistency
+      persistSession: true,
+      // Auto-refresh tokens before they expire
+      autoRefreshToken: true,
+    },
+  })
 }
 
 /**
- * Exported client using lazy getter (deprecated, use getSupabaseClient instead)
+ * Lazy-loaded Supabase client
+ * Initialize on first access to avoid build-time errors
  */
-export const supabase = new Proxy(
-  {},
+export const supabase = new Proxy<SupabaseClient>(
+  {} as SupabaseClient,
   {
-    get: (target, prop) => {
-      const client = getSupabaseClient()
-      return (client as any)[prop]
+    get: (target, prop: string | symbol) => {
+      if (!supabaseClient) {
+        supabaseClient = initSupabase()
+      }
+      return (supabaseClient as any)[prop]
     },
   }
-) as ReturnType<typeof createClient>
+)
 
 /**
  * Validate that Supabase environment variables are configured
