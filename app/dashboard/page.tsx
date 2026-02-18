@@ -6,7 +6,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, validateSupabaseConfig, type Bookmark } from '@/lib/supabase'
+import { supabase, type Bookmark } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
@@ -31,8 +31,6 @@ export default function DashboardPage() {
   useEffect(() => {
     const init = async () => {
       try {
-        validateSupabaseConfig()
-        
         const { data: { user }, error } = await supabase.auth.getUser()
         
         if (error || !user) {

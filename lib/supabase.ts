@@ -12,10 +12,6 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-// Get Supabase URL and anonymous key from environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
 // Lazy-initialized Supabase client to defer creation until runtime
 let supabaseClient: SupabaseClient | null = null
 
@@ -24,9 +20,16 @@ let supabaseClient: SupabaseClient | null = null
  * Defers client creation to runtime to avoid build-time errors
  */
 function initSupabase(): SupabaseClient {
+  const supabaseUrl = typeof window !== 'undefined' 
+    ? process.env.NEXT_PUBLIC_SUPABASE_URL 
+    : ''
+  const supabaseAnonKey = typeof window !== 'undefined' 
+    ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY 
+    : ''
+
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
-      'Missing Supabase environment variables. Please check your .env.local file or Vercel environment variables.'
+      'Supabase environment variables not configured. Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in your deployment environment.'
     )
   }
 
@@ -55,18 +58,6 @@ export const supabase = new Proxy<SupabaseClient>(
     },
   }
 )
-
-/**
- * Validate that Supabase environment variables are configured
- * Call this function when you need to use the Supabase client
- */
-export function validateSupabaseConfig() {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Missing Supabase environment variables. Please check your .env.local file or Vercel environment variables.'
-    )
-  }
-}
 
 /**
  * Type definition for bookmark data structure
