@@ -20,12 +20,12 @@ let supabaseClient: SupabaseClient | null = null
  * Defers client creation to runtime to avoid build-time errors
  */
 function initSupabase(): SupabaseClient {
-  const supabaseUrl = typeof window !== 'undefined' 
-    ? process.env.NEXT_PUBLIC_SUPABASE_URL 
-    : ''
-  const supabaseAnonKey = typeof window !== 'undefined' 
-    ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY 
-    : ''
+  // Get environment variables (Set at build time by Next.js)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 
+    'https://kathepcjfamsmesggrxq.supabase.co'
+  
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthdGhlcGNqZmFtc21lc2dncnhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMDc1NzMsImV4cCI6MjA4Njg4MzU3M30.FW2_E5k16OdjaBwNKC1ZUKY07BmLSlAH2nW4o5JEElQ'
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
